@@ -27,7 +27,7 @@ def main():
 
     # Check if input exists
     if not input_path.exists():
-        print(f"❌ Error: Input file not found: {input_path}")
+        print(f"[ERROR] Input file not found: {input_path}")
         print("\nPlease make sure you have the agricultural_dataset.jsonl file in:")
         print(f"  {input_path.parent}/")
         return
@@ -50,7 +50,7 @@ def main():
     try:
         stats = chunker.chunk_dataset(str(input_path), str(output_path))
 
-        print("\n✅ Chunking completed successfully!")
+        print("\n[OK] Chunking completed successfully!")
         print(f"\nOutput saved to: {output_path}")
 
         # Display recommendations
@@ -61,16 +61,16 @@ def main():
         print(f"   - Open: {output_path}")
         print("   - Check that chunks are coherent and well-sized")
         print("\n2. Generate batch plan:")
-        print("   python qa_generation/scripts/03_generate_batch.py --plan")
+        print("   python generate_batch.py --batch-id 1")
         print("\n3. Generate first batch:")
-        print("   python qa_generation/scripts/03_generate_batch.py --batch-id 1")
+        print("   python generate_batch.py --batch-id 1")
         print("\n" + "="*80 + "\n")
 
     except FileNotFoundError as e:
-        print(f"❌ Error: {e}")
+        print(f"[ERROR] {e}")
         print("\nPlease check that the input file exists and is accessible.")
     except Exception as e:
-        print(f"❌ Error during chunking: {e}")
+        print(f"[ERROR] Error during chunking: {e}")
         import traceback
         traceback.print_exc()
 

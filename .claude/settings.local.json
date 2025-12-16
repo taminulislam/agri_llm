@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(call conda activate agri_llm)",
+      "Bash(pip install:*)",
+      "Bash(\"C:\\Users\\Rafi\\miniconda3\\envs\\agri_llm\\python.exe\" test_api.py)"
+    ]
+  }
+}

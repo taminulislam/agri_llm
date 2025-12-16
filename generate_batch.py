@@ -29,7 +29,7 @@ def create_batch_plans():
     chunks_path = data_dir / 'chunks' / 'semantic_chunks.jsonl'
 
     if not chunks_path.exists():
-        print(f"❌ Error: Chunks file not found: {chunks_path}")
+        print(f"[ERROR] Chunks file not found: {chunks_path}")
         print("\nPlease run first:")
         print("  python qa_generation/scripts/02_create_chunks.py")
         return None
@@ -47,7 +47,7 @@ def create_batch_plans():
 
     for config in configs:
         batch_dir = batch_mgr.save_batch_config(config)
-        print(f"  Batch {config.batch_id}: {len(config.chunks_to_process)} chunks → {config.target_qa_count} Q&A pairs")
+        print(f"  Batch {config.batch_id}: {len(config.chunks_to_process)} chunks -> {config.target_qa_count} Q&A pairs")
 
     return batch_mgr
 
@@ -59,7 +59,7 @@ def generate_batch(batch_id: int, resume: bool = True):
     api_key = os.getenv('GEMINI_API_KEY')
 
     if not api_key:
-        print("❌ Error: GEMINI_API_KEY not found in .env file")
+        print("[ERROR] GEMINI_API_KEY not found in .env file")
         print("\nPlease run first:")
         print("  python qa_generation/scripts/00_setup_guide.py")
         return
@@ -73,7 +73,7 @@ def generate_batch(batch_id: int, resume: bool = True):
     # Check if batch config exists
     batch_config_path = data_dir / 'batches' / f'batch_{batch_id:03d}' / 'config.json'
     if not batch_config_path.exists():
-        print(f"❌ Batch {batch_id} config not found. Creating batch plans...")
+        print(f"[INFO] Batch {batch_id} config not found. Creating batch plans...")
         batch_mgr = create_batch_plans()
         if not batch_mgr:
             return
@@ -89,17 +89,17 @@ def generate_batch(batch_id: int, resume: bool = True):
         print(f"\n{'='*80}")
         print(f"BATCH {batch_id} COMPLETED!")
         print(f"{'='*80}")
-        print(f"\n📊 Results:")
+        print(f"\n[RESULTS]")
         print(f"  Generated (raw): {stats['qa_generated']}")
         print(f"  Filtered (kept): {stats['qa_filtered']}")
         print(f"  Rejected: {stats['qa_rejected']}")
         print(f"  Filter pass rate: {stats['filter_rate']}%")
         print(f"  Completion rate: {stats['completion_rate']}% of target")
-        print(f"\n💰 API Usage:")
+        print(f"\n[API USAGE]")
         print(f"  Total requests: {stats['api_usage']['total_requests']}")
         print(f"  Success rate: {stats['api_usage']['success_rate']}%")
         print(f"  Estimated cost: ${stats['api_usage']['estimated_cost_usd']}")
-        print(f"\n📁 Output files:")
+        print(f"\n[OUTPUT FILES]")
         batch_dir = data_dir / 'batches' / f'batch_{batch_id:03d}'
         print(f"  Raw Q&A: {batch_dir / 'raw_qa_pairs.jsonl'}")
         print(f"  Filtered Q&A: {batch_dir / 'filtered_qa_pairs.jsonl'}")
@@ -108,7 +108,7 @@ def generate_batch(batch_id: int, resume: bool = True):
 
         # Next steps
         if stats['completion_rate'] >= 90:
-            print("✅ Batch generation successful!")
+            print("[OK] Batch generation successful!")
             print("\nNext steps:")
             print(f"  1. Review batch {batch_id}:")
             print(f"     - Check {batch_dir / 'filtered_qa_pairs.jsonl'}")
@@ -120,12 +120,12 @@ def generate_batch(batch_id: int, resume: bool = True):
                 print(f"  2. All batches complete! Merge them:")
                 print(f"     python merge_batches.py")
         else:
-            print("⚠️  Warning: Completion rate is low. You may want to:")
+            print("[WARNING] Completion rate is low. You may want to:")
             print("  - Generate more chunks from this batch")
             print("  - Adjust parameters and regenerate")
 
     except Exception as e:
-        print(f"\n❌ Error during batch generation: {e}")
+        print(f"\n[ERROR] Error during batch generation: {e}")
         import traceback
         traceback.print_exc()
         print("\nThe batch can be resumed by running the same command again.")

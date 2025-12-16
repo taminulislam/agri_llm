@@ -102,8 +102,8 @@ class QAGenerator:
             try:
                 self.logger.info(f"Processing chunk {idx}/{len(config.chunks_to_process)}: {chunk_id}")
 
-                # Generate Q&A pairs for this chunk
-                qa_pairs = self._generate_for_chunk(chunk, config)
+                # Generate Q&A pairs for this chunk (multi-pass)
+                qa_pairs, api_calls_made = self._generate_for_chunk(chunk, config)
 
                 # Write raw pairs
                 for pair in qa_pairs:
@@ -122,7 +122,7 @@ class QAGenerator:
                     stats['qa_filtered'] += 1
 
                 stats['qa_rejected'] += len(rejected)
-                stats['api_calls'] += 1
+                stats['api_calls'] += api_calls_made
                 processed_chunks.add(chunk_id)
                 stats['chunks_processed'] += 1
 
@@ -171,23 +171,57 @@ class QAGenerator:
 
         return stats
 
-    def _generate_for_chunk(self, chunk: Dict, config) -> List[Dict]:
-        """Generate Q&A pairs for a single chunk"""
-        # Build prompt
-        prompt = BATCH_GENERATION_PROMPT.format(
-            text=chunk['text'],
-            topic=chunk['topic'],
-            keywords=', '.join(chunk['keywords']),
-            total_questions=config.qa_per_chunk,
-            factual_count=config.question_distribution['factual'],
-            conceptual_count=config.question_distribution['conceptual'],
-            procedural_count=config.question_distribution['procedural'],
-            comparative_count=config.question_distribution['comparative'],
-            scenario_count=config.question_distribution['scenario'],
-            analytical_count=config.question_distribution['analytical']
-        )
+    # Pass variation prompts to encourage diverse questions across passes
+    PASS_VARIATIONS = [
+        "",  # Default - no variation
+        "Focus on fundamental concepts and definitions.",
+        "Focus on practical applications and real-world scenarios.",
+        "Focus on advanced topics and analytical thinking.",
+        "Focus on comparisons, trade-offs, and decision-making.",
+    ]
 
-        # Generate Q&A pairs
-        qa_pairs = self.client.generate_qa_batch(prompt)
+    def _generate_for_chunk(self, chunk: Dict, config) -> tuple:
+        """
+        Generate Q&A pairs for a single chunk using multiple passes.
+        
+        Returns:
+            tuple: (list of Q&A pairs, number of API calls made)
+        """
+        all_qa_pairs = []
+        api_calls_made = 0
+        passes = getattr(config, 'passes_per_chunk', 1)
+        
+        for pass_num in range(passes):
+            # Get variation text for this pass
+            variation = self.PASS_VARIATIONS[pass_num % len(self.PASS_VARIATIONS)]
+            variation_text = f"\n\nAdditional focus for this batch: {variation}" if variation else ""
+            
+            # Build prompt
+            prompt = BATCH_GENERATION_PROMPT.format(
+                text=chunk['text'],
+                topic=chunk['topic'],
+                keywords=', '.join(chunk['keywords']),
+                total_questions=config.qa_per_chunk,
+                factual_count=config.question_distribution['factual'],
+                conceptual_count=config.question_distribution['conceptual'],
+                procedural_count=config.question_distribution['procedural'],
+                comparative_count=config.question_distribution['comparative'],
+                scenario_count=config.question_distribution['scenario'],
+                analytical_count=config.question_distribution['analytical']
+            ) + variation_text
 
-        return qa_pairs
+            # Generate Q&A pairs for this pass
+            qa_pairs = self.client.generate_qa_batch(prompt)
+            api_calls_made += 1
+            
+            # Add pass number to each pair for tracking
+            for pair in qa_pairs:
+                pair['pass'] = pass_num + 1
+            
+            all_qa_pairs.extend(qa_pairs)
+            
+            # Log progress for multi-pass
+            if passes > 1:
+                self.logger.info(f"  Pass {pass_num + 1}/{passes}: generated {len(qa_pairs)} Q&A pairs")
+
+        return all_qa_pairs, api_calls_made

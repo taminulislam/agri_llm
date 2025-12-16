@@ -231,7 +231,7 @@ class SemanticChunker:
         for doc_name, pages in sorted(docs.items()):
             doc_chunks = self.chunk_document(pages)
             all_chunks.extend(doc_chunks)
-            print(f"  {doc_name:40s}: {len(pages):3d} pages → {len(doc_chunks):3d} chunks")
+            print(f"  {doc_name:40s}: {len(pages):3d} pages -> {len(doc_chunks):3d} chunks")
 
         # Save chunks
         print(f"\nSaving chunks to: {output_path}")
