@@ -59,3 +59,13 @@ Thumbs.db
 *.tmp
 *.bak
 *.log
+
+# Environment variables (API keys)
+.env
+.env.local
+
+# Q&A Generation logs and data
+logs/
+data/batches/
+data/checkpoints/
+data/final/
