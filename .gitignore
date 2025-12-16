@@ -36,6 +36,7 @@ venv/
 env/
 ENV/
 .venv
+agri_llm/
 
 # IDEs
 .vscode/
