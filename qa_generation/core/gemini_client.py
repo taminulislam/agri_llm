@@ -53,11 +53,15 @@ class GeminiClient:
     FREE_TPM = 1_000_000
     FREE_RPD = 1_500
 
+    # Paid tier rate limits (much higher than free tier)
+    PAID_RPM = 2000  # 2000 requests per minute
+    PAID_TPM = 4_000_000  # 4 million tokens per minute
+
     def __init__(self,
                  api_key: str,
                  model_name: str = "gemini-2.5-flash",
-                 rpm_limit: int = 15,
-                 tpm_limit: int = 1_000_000,
+                 rpm_limit: int = 2000,  # Use paid tier limits by default
+                 tpm_limit: int = 4_000_000,
                  temperature: float = 0.7):
 
         if not GENAI_AVAILABLE:
