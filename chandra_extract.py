@@ -10,8 +10,8 @@ import subprocess
 from datetime import datetime
 
 # ==================== CONFIGURATION ====================
-PDF_DIR = pathlib.Path("/home/siu856562106/research/agrollm/data/book")
-OUT_DIR = pathlib.Path("/home/siu856562106/research/agrollm/data/extracted")
+PDF_DIR = pathlib.Path("")
+OUT_DIR = pathlib.Path("")
 
 # Choose method: "vllm" (default) or "hf" (Hugging Face)
 METHOD = "hf"  # switch to "vllm" if you have a vLLM server running
