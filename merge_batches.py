@@ -38,7 +38,7 @@ def merge_batches(batch_ids=None):
         batch_file = Path(f'data/batches/batch_{batch_id:03d}/filtered_qa_pairs.jsonl')
 
         if not batch_file.exists():
-            print(f"[WARNING] Batch {batch_id} not found at {batch_file}")
+            print(f"⚠️  Warning: Batch {batch_id} not found at {batch_file}")
             print(f"   Skipping batch {batch_id}")
             continue
 
@@ -65,7 +65,7 @@ def merge_batches(batch_ids=None):
             'unique': len(batch_qa) - duplicate_count
         }
 
-        print(f"  [OK] Loaded {len(batch_qa)} Q&A pairs")
+        print(f"  ✅ Loaded {len(batch_qa)} Q&A pairs")
 
     print(f"\n{'='*80}")
     print("DEDUPLICATION SUMMARY")
@@ -134,25 +134,25 @@ def merge_batches(batch_ids=None):
     print(f"\n{'='*80}")
     print("OUTPUT FILES")
     print(f"{'='*80}")
-    print(f"\n[OK] Final dataset: {output_path}")
-    print(f"    {len(all_qa):,} unique Q&A pairs")
-    print(f"\n[OK] Statistics: {stats_path}")
+    print(f"\n✅ Final dataset: {output_path}")
+    print(f"   {len(all_qa):,} unique Q&A pairs")
+    print(f"\n✅ Statistics: {stats_path}")
 
     # Create pretty JSON version
     json_path = output_path.parent / 'agricultural_qa_dataset.json'
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(all_qa, f, indent=2, ensure_ascii=False)
-    print(f"\n[OK] JSON format: {json_path}")
-    print(f"    (Pretty-printed for easy viewing)")
+    print(f"\n✅ JSON format: {json_path}")
+    print(f"   (Pretty-printed for easy viewing)")
 
     print(f"\n{'='*80}")
     print("SUCCESS!")
     print(f"{'='*80}")
     print(f"\nYour {len(all_qa):,} Q&A pairs are ready for:")
-    print("  - LLM fine-tuning")
-    print("  - RAG systems")
-    print("  - Question-answering models")
-    print("  - Educational applications")
+    print("  ✅ LLM fine-tuning")
+    print("  ✅ RAG systems")
+    print("  ✅ Question-answering models")
+    print("  ✅ Educational applications")
     print(f"\n{'='*80}\n")
 
     return all_qa

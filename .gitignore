@@ -69,3 +69,31 @@ logs/
 data/batches/
 data/checkpoints/
 data/final/
+
+# JSON files
+*.json
+*.jsonl
+*.jsonl.gz
+*.jsonl.bz2
+*.jsonl.xz
+*.jsonl.zip
+*.jsonl.tar
+*.jsonl.tar.gz
+*.jsonl.tar.bz2
+*.jsonl.tar.xz
+
+
+*.jsonl.tar.zip
+
+#image files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.ico
+*.webp
+*.svg
+*.eps
+*.pdf

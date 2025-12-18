@@ -15,9 +15,8 @@ class BatchConfig:
     batch_id: int
     target_qa_count: int  # e.g., 10,000
     chunks_to_process: List[str]  # chunk IDs
-    qa_per_chunk: int  # questions per single API call (max 20 for reliability)
-    passes_per_chunk: int  # number of API calls per chunk (e.g., 5)
-    question_distribution: Dict[str, int]  # type -> count (per single API call)
+    qa_per_chunk: int  # questions per chunk
+    question_distribution: Dict[str, int]  # type -> count
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     status: str = "pending"  # pending, in_progress, completed, failed
@@ -61,9 +60,6 @@ class BatchManager:
         self.batches_dir.mkdir(parents=True, exist_ok=True)
         self.checkpoints_dir.mkdir(parents=True, exist_ok=True)
 
-    # Maximum Q&A pairs per single API call (to avoid JSON truncation)
-    MAX_QA_PER_CALL = 20
-    
     def create_batch_plan(self,
                           chunks: List[Dict],
                           total_target: int = 50000,
@@ -92,44 +88,29 @@ class BatchManager:
             batch_chunks = chunks[start_idx:end_idx]
             chunk_ids = [c['id'] for c in batch_chunks]
 
-            # Calculate total questions needed per chunk
-            total_qa_per_chunk = max(1, qa_per_batch // len(batch_chunks))
-            
-            # Calculate passes needed per chunk (each pass generates MAX_QA_PER_CALL questions)
-            # Use 20 Q&A per API call to avoid JSON truncation issues
-            qa_per_call = min(self.MAX_QA_PER_CALL, total_qa_per_chunk)
-            passes_per_chunk = max(1, (total_qa_per_chunk + qa_per_call - 1) // qa_per_call)
-            
-            # Cap passes to avoid excessive API calls (5 passes max = 100 Q&A per chunk)
-            passes_per_chunk = min(passes_per_chunk, 5)
-            
-            # Recalculate actual Q&A per chunk based on passes
-            actual_qa_per_chunk = qa_per_call * passes_per_chunk
+            # Calculate questions per chunk
+            qa_per_chunk = max(1, qa_per_batch // len(batch_chunks))
 
-            # Define question type distribution (as counts per single API call)
+            # Define question type distribution (as counts)
             distribution = {
-                'factual': max(1, int(qa_per_call * 0.20)),
-                'conceptual': max(1, int(qa_per_call * 0.20)),
-                'procedural': max(1, int(qa_per_call * 0.20)),
-                'comparative': max(1, int(qa_per_call * 0.15)),
-                'scenario': max(1, int(qa_per_call * 0.15)),
-                'analytical': max(1, int(qa_per_call * 0.10)),
+                'factual': int(qa_per_chunk * 0.20),
+                'conceptual': int(qa_per_chunk * 0.20),
+                'procedural': int(qa_per_chunk * 0.20),
+                'comparative': int(qa_per_chunk * 0.15),
+                'scenario': int(qa_per_chunk * 0.15),
+                'analytical': int(qa_per_chunk * 0.10),
             }
 
-            # Ensure sum equals qa_per_call
+            # Ensure sum equals qa_per_chunk
             actual_sum = sum(distribution.values())
-            if actual_sum < qa_per_call:
-                distribution['factual'] += (qa_per_call - actual_sum)
-            elif actual_sum > qa_per_call:
-                # Trim excess from factual
-                distribution['factual'] -= (actual_sum - qa_per_call)
+            if actual_sum < qa_per_chunk:
+                distribution['factual'] += (qa_per_chunk - actual_sum)
 
             config = BatchConfig(
                 batch_id=batch_num,
-                target_qa_count=len(batch_chunks) * actual_qa_per_chunk,  # Realistic target
+                target_qa_count=qa_per_batch,
                 chunks_to_process=chunk_ids,
-                qa_per_chunk=qa_per_call,  # Per single API call
-                passes_per_chunk=passes_per_chunk,  # Number of API calls per chunk
+                qa_per_chunk=qa_per_chunk,
                 question_distribution=distribution
             )
 

@@ -2,7 +2,6 @@
 Google Gemini Flash API client with rate limiting and error handling.
 """
 
-import re
 import time
 import json
 import logging
@@ -53,15 +52,11 @@ class GeminiClient:
     FREE_TPM = 1_000_000
     FREE_RPD = 1_500
 
-    # Paid tier rate limits (much higher than free tier)
-    PAID_RPM = 2000  # 2000 requests per minute
-    PAID_TPM = 4_000_000  # 4 million tokens per minute
-
     def __init__(self,
                  api_key: str,
                  model_name: str = "gemini-2.5-flash",
-                 rpm_limit: int = 2000,  # Use paid tier limits by default
-                 tpm_limit: int = 4_000_000,
+                 rpm_limit: int = 15,
+                 tpm_limit: int = 1_000_000,
                  temperature: float = 0.7):
 
         if not GENAI_AVAILABLE:
@@ -185,99 +180,13 @@ class GeminiClient:
             self.logger.error(f"API call failed: {e}")
             raise
 
-    def _repair_json(self, text: str) -> str:
-        """
-        Attempt to repair common JSON issues from LLM responses.
-        
-        Common issues:
-        - Unterminated strings (truncated response)
-        - Missing closing brackets
-        - Trailing commas
-        """
-        text = text.strip()
-        
-        # Remove trailing commas before ] or }
-        text = re.sub(r',\s*]', ']', text)
-        text = re.sub(r',\s*}', '}', text)
-        
-        # Try to fix unterminated strings by finding last complete JSON object
-        # Look for the last complete object pattern: {...}
-        # Count brackets to find where array should end
-        bracket_count = 0
-        brace_count = 0
-        in_string = False
-        escape_next = False
-        last_complete_idx = -1
-        
-        for i, char in enumerate(text):
-            if escape_next:
-                escape_next = False
-                continue
-            if char == '\\':
-                escape_next = True
-                continue
-            if char == '"' and not escape_next:
-                in_string = not in_string
-                continue
-            if in_string:
-                continue
-                
-            if char == '[':
-                bracket_count += 1
-            elif char == ']':
-                bracket_count -= 1
-                if bracket_count == 0:
-                    last_complete_idx = i + 1
-            elif char == '{':
-                brace_count += 1
-            elif char == '}':
-                brace_count -= 1
-                if brace_count == 0 and bracket_count == 1:
-                    # Found complete object inside array
-                    last_complete_idx = i + 1
-        
-        # If we have unclosed brackets/braces, try to close them
-        if bracket_count > 0 or brace_count > 0:
-            # Find last complete object and truncate there
-            if last_complete_idx > 0:
-                text = text[:last_complete_idx]
-                # Add missing closing brackets
-                if not text.rstrip().endswith(']'):
-                    text = text.rstrip().rstrip(',') + ']'
-        
-        return text
-    
-    def _extract_partial_qa_pairs(self, text: str) -> List[Dict]:
-        """
-        Extract valid Q&A pairs even from partially malformed JSON.
-        Uses regex to find complete JSON objects.
-        """
-        qa_pairs = []
-        
-        # Pattern to match individual Q&A JSON objects
-        # Matches: {"question": "...", "answer": "...", ...}
-        pattern = r'\{\s*"question"\s*:\s*"[^"]*"\s*,\s*"answer"\s*:\s*"[^"]*"[^}]*\}'
-        
-        matches = re.findall(pattern, text, re.DOTALL)
-        
-        for match in matches:
-            try:
-                obj = json.loads(match)
-                if 'question' in obj and 'answer' in obj:
-                    qa_pairs.append(obj)
-            except json.JSONDecodeError:
-                continue
-        
-        return qa_pairs
-
     def generate_qa_batch(self, prompt: str) -> List[Dict]:
         """
-        Generate Q&A batch and parse JSON response with robust error recovery.
+        Generate Q&A batch and parse JSON response.
 
         Returns:
             List of Q&A pairs or empty list if failed
         """
-        response_text = ""
         try:
             response_text = self.generate(prompt)
 
@@ -298,37 +207,19 @@ class GeminiClient:
 
             response_text = response_text.strip()
 
-            # Try direct parse first
-            try:
-                qa_pairs = json.loads(response_text)
-                if isinstance(qa_pairs, list):
-                    self.logger.info(f"Successfully parsed {len(qa_pairs)} Q&A pairs")
-                    return qa_pairs
-            except json.JSONDecodeError:
-                pass  # Will try repair methods
-            
-            # Try JSON repair
-            self.logger.warning("Direct JSON parse failed, attempting repair...")
-            repaired_text = self._repair_json(response_text)
-            try:
-                qa_pairs = json.loads(repaired_text)
-                if isinstance(qa_pairs, list):
-                    self.logger.info(f"Repaired JSON: parsed {len(qa_pairs)} Q&A pairs")
-                    return qa_pairs
-            except json.JSONDecodeError:
-                pass  # Will try extraction method
-            
-            # Last resort: extract individual Q&A pairs using regex
-            self.logger.warning("JSON repair failed, extracting individual pairs...")
-            qa_pairs = self._extract_partial_qa_pairs(response_text)
-            if qa_pairs:
-                self.logger.info(f"Extracted {len(qa_pairs)} Q&A pairs from partial response")
-                return qa_pairs
-            
-            self.logger.error("All JSON parsing methods failed")
-            self.logger.debug(f"Response text (first 500 chars): {response_text[:500]}")
-            return []
+            # Parse JSON
+            qa_pairs = json.loads(response_text)
 
+            if not isinstance(qa_pairs, list):
+                self.logger.error("Response is not a JSON array")
+                return []
+
+            return qa_pairs
+
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Failed to parse JSON: {e}")
+            self.logger.debug(f"Response text: {response_text[:500]}")
+            return []
         except Exception as e:
             self.logger.error(f"Failed to generate Q&A batch: {e}")
             return []
